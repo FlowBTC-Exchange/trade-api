@@ -1,0 +1,19 @@
+{
+  "name": "flowbtc-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Anderson Juhasc",
+  "license": "ISC",
+  "dependencies": {
+    "alphapoint-apex-api": "^5.0.13",
+    "axios": "^0.21.1",
+    "ws": "^7.4.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7"
+  }
+}
