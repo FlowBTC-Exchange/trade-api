@@ -2,7 +2,7 @@ const WebSocket = require('ws')
 
 const CONSTANTS = require('./constants')
 
-const { Sides, Pairs, Products, OrderTypes, PegPriceTypes } = CONSTANTS
+const { Sides, Pairs, Products, OrderTypes, PegPriceTypes, MakerTaker } = CONSTANTS
 
 const endpoint = 'wss://api.flowbtc.com.br/WSGateway/'
 
@@ -14,14 +14,23 @@ let requestIndex = 0
  * @param {string} password
  */
 function WS() {
+	let self = this
 	const ws = new WebSocket(endpoint)
 
 	ws.on('open', function open() {
 		console.log('OPEN CONNECTION')
 	})
 
-	ws.on('message', function open(e) {
-		console.log('<-', JSON.parse(e))
+	ws.on('message', function open(res) {
+		const frame = JSON.parse(res);
+
+		console.log('<-', frame)
+
+		if (frame.n == "GetUserInfo") {
+			var account = JSON.parse(frame.o);
+
+			self.accountId = account.AccountId
+		}
 
 		// m
 		//0 request
@@ -30,54 +39,6 @@ function WS() {
 		//3 event
 		//4 unsubscribe-from event
 		//5 error
-
-		// Chamada bem-sucedida sem objeto de retorno
-		//{
-		//  "result": true,
-		//  "errormsg": null,
-		//  "errorcode": 0,
-		//  "detail": null
-		//}
-		//
-		//// Chamada sem sucesso devido a falta de autorização
-		//{
-		//  "result": false,
-		//  "errormsg": "Not Authorized",
-		//  "errorcode": 20,
-		//  "detail": null
-		//}
-		//
-		//// Chamada sem sucesso devido a parâmetros de solicitação inválidos
-		//{
-		//  "result": false,
-		//  "errormsg": "Invalid Request",
-		//  "errorcode": 100,
-		//  "detail": null
-		//}
-		//
-		//// Chamada sem sucesso devido a falha na operação
-		//{
-		//  "result": false,
-		//  "errormsg": "Operation Failed",
-		//  "errorcode": 101,
-		//  "detail": null
-		//}
-		//
-		//// Chamada sem sucesso devido a uma falha inesperada no servidor
-		//{
-		//  "result": false,
-		//  "errormsg": "Server Error",
-		//  "errorcode": 102,
-		//  "detail": null
-		//}
-		//
-		//// Chamada sem sucesso devido a falta de algum recurso (id do usuário não encontrado, etc)
-		//{
-		//  "result": false,
-		//  "errormsg": "Resource Not Found",
-		//  "errorcode": 104,
-		//  "detail": null
-		//}
 	})
 
 	ws.on('close', function() {
@@ -129,17 +90,17 @@ WS.prototype.GetUserInfo = function(UserId) {
 	})
 }
 
-WS.prototype.GetAccountInfo = function(AccountId) {
+WS.prototype.GetAccountInfo = function() {
 	this.SendFrame('GetAccountInfo', {
 		OMSId: 1,
-		AccountId: AccountId
+		AccountId: this.accountId
 	})
 }
 
-WS.prototype.SubscribeAccountEvents = function(AccountId) {
+WS.prototype.SubscribeAccountEvents = function() {
 	this.SendFrame('SubscribeAccountEvents', {
 		OMSId: 1,
-		AccountId: AccountId
+		AccountId: this.accountId
 	})
 }
 
@@ -223,21 +184,21 @@ WS.prototype.GetProducts = function() {
 	})
 }
 
-WS.prototype.GetAccountTrades = function(accountId, count) {
+WS.prototype.GetAccountTrades = function(count) {
 	this.SendFrame('GetAccountTrades', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		Count: count,
 		StartIndex: 0
 	})
 }
 
-WS.prototype.CreateDepositTicket = function(accountId, currency, amount, info) {
+WS.prototype.CreateDepositTicket = function(currency, amount, info) {
 	currency = currency.toLowerCase()
 
 	this.SendFrame('CreateDepositTicket', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		AssetId: Products[currency], 
 		Amount: amount,
 		OperatorId: 1,
@@ -245,12 +206,12 @@ WS.prototype.CreateDepositTicket = function(accountId, currency, amount, info) {
 	})
 }
 
-WS.prototype.CreateWithdrawTicket = function(accountId, currency, amount) {
+WS.prototype.CreateWithdrawTicket = function(currency, amount) {
 	currency = currency.toLowerCase()
 
 	this.SendFrame('CreateWithdrawTicket', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		ProductId: Products[currency], 
 		Amount: amount,
 	})
@@ -258,15 +219,17 @@ WS.prototype.CreateWithdrawTicket = function(accountId, currency, amount) {
 
 /**
  * Prototype
- * @param {number} AccountId
  * @param {string} 'buy' || 'sell'
  * @param {number} 
- * @param {orderType} 
+ * @param {string} orderType 
  */
-WS.prototype.SendOrder = function(accountId, side, pair, quantity, limitPrice, orderType, pegpricetypes, clientOrderId) {
-
+WS.prototype.SendOrder = function(side, pair, quantity, limitPrice, orderType, pegpricetypes, clientOrderId) {
 	side = side.toLowerCase()
 	pair = pair.toLowerCase()
+
+	if (orderType) {
+		orderType = orderType.toLowerCase()
+	}
 
 	if (!orderType) {
 		orderType = !limitPrice ? 'market' : 'limit'
@@ -279,7 +242,7 @@ WS.prototype.SendOrder = function(accountId, side, pair, quantity, limitPrice, o
 	this.SendFrame('SendOrder', {
 		InstrumentId: Pairs[pair],
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		TimeInForce: 1,
 		ClientOrderId: clientOrderId,
 		OrderIdOCO: 0,
@@ -303,57 +266,57 @@ WS.prototype.ModifyOrder = function(orderId, pair, quantity) {
 	})
 }
 
-WS.prototype.CancelOrder = function(accountId, orderId, clOrderId) {
+WS.prototype.CancelOrder = function(orderId, clOrderId) {
 	this.SendFrame('CancelOrder', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		OrderId: orderId,
 		ClOrderId: clOrderId, 
 	})
 }
 
-WS.prototype.CancelAllOrders = function(accountId, pair) {
+WS.prototype.CancelAllOrders = function(pair) {
 	pair = pair.toLowerCase()
 
 	this.SendFrame('CancelAllOrders', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		InstrumentId: Pairs[pair],
 	})
 }
 
-WS.prototype.GetOrderStatus = function(accountId, orderId) {
+WS.prototype.GetOrderStatus = function(orderId) {
 	this.SendFrame('CancelAllOrders', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		OrderId: orderId,
 	})
 }
 
-WS.prototype.GetOrderFee = function(accountId, pair, amount, orderType, makerTaker) {
+WS.prototype.GetOrderFee = function(pair, amount, orderType, makerTaker) {
 	pair = pair.toLowerCase()
 
 	this.SendFrame('GetOrderFee', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 		InstrumentId: Pairs[pair],
 		Amount: amount,
-		OrderType: orderType, //"Market"
-		MakerTaker: makerTaker // "Maker"
+		OrderType: OrderTypes[orderType],
+		MakerTaker: MakerTaker[makerTaker]
 	})
 }
 
-WS.prototype.GetOrderHistory = function(accountId) {
+WS.prototype.GetOrderHistory = function() {
 	this.SendFrame('GetOrderHistory', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 	})
 }
 
-WS.prototype.GetOpenOrders = function(accountId) {
+WS.prototype.GetOpenOrders = function() {
 	this.SendFrame('GetOpenOrders', {
 		OMSId: 1,
-		AccountId: accountId,
+		AccountId: this.accountId,
 	})
 }
 

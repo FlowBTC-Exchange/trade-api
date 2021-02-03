@@ -42,10 +42,16 @@ const PegPriceTypes = {
 	midpoint: 4
 }
 
+const MakerTaker = {
+	maker: 'Maker',
+	taker: 'Taker',
+}
+
 module.exports = {
 	Pairs: Pairs,
 	Sides: Sides,
 	Products: Products,
 	OrderTypes: OrderTypes,
 	PegPriceTypes: PegPriceTypes,
+	MakerTaker: MakerTaker
 }
