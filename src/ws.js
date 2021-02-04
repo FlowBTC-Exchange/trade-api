@@ -1,17 +1,12 @@
 const WebSocket = require('ws')
-
-const CONSTANTS = require('./constants')
-
-const { Sides, Pairs, Products, OrderTypes, PegPriceTypes, MakerTaker } = CONSTANTS
-
-const endpoint = 'wss://api.flowbtc.com.br/WSGateway/'
+		, CONSTANTS = require('./constants')
+		, { Sides, Pairs, Products, OrderTypes, PegPriceTypes, MakerTaker } = CONSTANTS
+		, endpoint = 'wss://api.flowbtc.com.br/WSGateway/'
 
 let requestIndex = 0
 
 /**
  * Constructor
- * @param {string} username
- * @param {string} password
  */
 function WS() {
 	let self = this
@@ -26,19 +21,17 @@ function WS() {
 
 		console.log('<-', frame)
 
+		if (frame.n == "WebAuthenticateUser") {
+			var user = JSON.parse(frame.o);
+
+			self.userId = user.UserId
+		}
+
 		if (frame.n == "GetUserInfo") {
 			var account = JSON.parse(frame.o);
 
 			self.accountId = account.AccountId
 		}
-
-		// m
-		//0 request
-		//1 reply
-		//2 subscribe-to event
-		//3 event
-		//4 unsubscribe-from event
-		//5 error
 	})
 
 	ws.on('close', function() {
@@ -83,10 +76,10 @@ WS.prototype.ResetPassword = function(email) {
 	})
 }
 
-WS.prototype.GetUserInfo = function(UserId) {
+WS.prototype.GetUserInfo = function() {
 	this.SendFrame('GetUserInfo', {
 		OMSId: 1,
-		UserId: UserId
+		UserId: this.userId
 	})
 }
 
