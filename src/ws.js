@@ -70,6 +70,22 @@ WS.prototype.WebAuthenticateUser = function(email, password) {
 	})
 }
 
+WS.prototype.AuthenticateUser = function(apiKey, secret, userId) {
+	const crypto = require('crypto')
+			, creds = {
+					Nonce: `${Date.now()}`,
+					APIKey: apiKey,
+					Signature: '',
+					UserId: userId
+				}
+
+	creds.Signature = crypto.createHmac('sha256', secret)
+		.update(`${creds.Nonce}${creds.UserId}${creds.APIKey}`)
+			.digest('hex')
+
+	this.SendFrame('AuthenticateUser', creds)
+}
+
 WS.prototype.ResetPassword = function(email) {
 	this.SendFrame('ResetPassword', {
 		UserName: email
@@ -186,12 +202,12 @@ WS.prototype.GetAccountTrades = function(count) {
 	})
 }
 
-WS.prototype.CreateDepositTicket = function(currency, amount, info) {
+WS.prototype.CreateDepositTicket = function(currency, amount, accountId, info) {
 	currency = currency.toLowerCase()
 
 	this.SendFrame('CreateDepositTicket', {
 		OMSId: 1,
-		AccountId: this.accountId,
+		AccountId: accountId ? accountId : this.accountId,
 		AssetId: Products[currency], 
 		Amount: amount,
 		OperatorId: 1,
